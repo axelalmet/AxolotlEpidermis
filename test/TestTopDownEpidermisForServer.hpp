@@ -35,8 +35,8 @@ static const std::string M_OUTPUT_DIRECTORY = "AxolotlEpidermis/TopDown/";
 static const double M_DT = 0.005;
 static const double M_SS_END_TIME = 50.0;
 static const double M_SS_SAMPLING_TIMESTEP = M_SS_END_TIME / M_DT;
-static const double M_WOUND_END_TIME = M_SS_END_TIME + 12.0;
-static const double M_WOUND_SAMPLING_TIMESTEP = 1.0 / M_DT;
+static const double M_WOUND_END_TIME = M_SS_END_TIME + 6.0;
+static const double M_WOUND_SAMPLING_TIMESTEP = 0.5 / M_DT;
 
 class TestTopDownEpidermisForServer : public AbstractCellBasedTestSuite
 {
@@ -50,16 +50,12 @@ public:
         
         // Pull the relevant command line arguments 
         unsigned index = CommandLineArguments::Instance()->GetUnsignedCorrespondingToOption("-seed"); // Seed for random number generator
-        double drag_constant = CommandLineArguments::Instance()->GetDoubleCorrespondingToOption("-drag"); // Drag force (it's the eta in F = eta*dr/dt)
-        double adhesion_constant_multiplier = CommandLineArguments::Instance()->GetDoubleCorrespondingToOption("-adhesion"); // Attraction force multiplier for spring force to reduce adhesion in wounding
-        double migration_force_strength = CommandLineArguments::Instance()->GetDoubleCorrespondingToOption("-migration"); // Strength of active migration force
-
 
         RandomNumberGenerator::Instance()->Reseed(100*index); // Reseed the random number generator
 
         // Define geometry of the model in terms of cells
         unsigned cells_across = 70;
-        unsigned cells_up = (unsigned) 400.0 / sqrt(3.0); // This is so that the tissue is actually 800um long
+        unsigned cells_up = (unsigned) 360.0 / sqrt(3.0); // This is so that the tissue is actually 800um long
 
         // Cell cycle parameters for contact inhibition
         double quiescent_fraction = 0.8;
@@ -173,74 +169,96 @@ public:
          */
 
         double polarity_remodelling_strength = 5.0; // Allow for sufficiently rapid remodelling to mechanical influences
+        double polarity_remodelling_strength = 5.0; // Allow for sufficiently rapid remodelling to mechanical influences
+        std::vector<double> drag_constants = {0.25, 0.5, 0.75, 1.0}
+        std::vector<double> migration_force_strengths = {0.0, 1.0, 5.0, 10.0, 50.0};
+        std::vector<double> spring_force_multipliers = {0.125, 0.25, 0.5, 1.0};
 
-        OffLatticeSimulation<2>* p_simulator = CellBasedSimulationArchiver<2, OffLatticeSimulation<2> >::Load(ss_output_directory, M_SS_END_TIME);
-
-        for (AbstractCellPopulation<2>::Iterator cell_iter = p_simulator->rGetCellPopulation().Begin();
-            cell_iter != p_simulator->rGetCellPopulation().End();
-                ++cell_iter)
+        for (unsigned i = 0; i < spring_force_multipliers.size(); i++)
         {
-            // Remove the cell cycle by replacing it with a NoCellCycleModel
-                        //Set stochastic duration based cell cycle
-            NoCellCycleModel * p_cycle_model = new NoCellCycleModel(); //Don't give them any cell cycle model yet.
-            p_cycle_model->SetDimension(2);
-            cell_iter->SetCellCycleModel(p_cycle_model);
-            cell_iter->InitialiseCellCycleModel(); // For paranoia really.
 
-            unsigned node_index = p_simulator->rGetCellPopulation().GetLocationIndexUsingCell(*cell_iter);
-
-            double y = p_simulator->rGetCellPopulation().rGetMesh().GetNode(node_index)->rGetLocation()[1];
-            
-            // We need to initialise the applied for contribution for the writer, I think
-            Node<2>* p_node = p_simulator->rGetCellPopulation().rGetMesh().GetNode(node_index);
-
-            p_node->AddAppliedForceContribution(zero_vector<double>(2));
-
-            // Kill the cell if it's above the upper half of the boundary
-            if (y > 0.25*sqrt(3.0)*(double)cells_up)
+            for (unsigned j = 0; j < migration_force_strengths.size(); j++)
             {
-                cell_iter->Kill();
+
+                for (unsigned k = 0; k < drag_constants.size(); k++)
+                {
+
+                    double adhesion_constant_multiplier = spring_force_multipliers[i];
+                    double migration_force_strength = migration_force_strengths[j];
+                    double drag_constant = drag_constants[k];
+
+                    OffLatticeSimulation<2>* p_simulator = CellBasedSimulationArchiver<2, OffLatticeSimulation<2> >::Load(ss_output_directory, M_SS_END_TIME);
+
+                    for (AbstractCellPopulation<2>::Iterator cell_iter = p_simulator->rGetCellPopulation().Begin();
+                        cell_iter != p_simulator->rGetCellPopulation().End();
+                            ++cell_iter)
+                    {
+                        // Remove the cell cycle by replacing it with a NoCellCycleModel
+                                    //Set stochastic duration based cell cycle
+                        NoCellCycleModel * p_cycle_model = new NoCellCycleModel(); //Don't give them any cell cycle model yet.
+                        p_cycle_model->SetDimension(2);
+                        cell_iter->SetCellCycleModel(p_cycle_model);
+                        cell_iter->InitialiseCellCycleModel(); // For paranoia really.
+
+                        unsigned node_index = p_simulator->rGetCellPopulation().GetLocationIndexUsingCell(*cell_iter);
+
+                        double y = p_simulator->rGetCellPopulation().rGetMesh().GetNode(node_index)->rGetLocation()[1];
+                        
+                        // We need to initialise the applied for contribution for the writer, I think
+                        Node<2>* p_node = p_simulator->rGetCellPopulation().rGetMesh().GetNode(node_index);
+
+                        p_node->AddAppliedForceContribution(zero_vector<double>(2));
+
+                        // Kill the cell if it's above the upper third of the boundary (should be about 60 cells up)
+                        if (y > (2.0 / 3.0) * 0.5*sqrt(3.0)*(double)cells_up)
+                        {
+                            cell_iter->Kill();
+                        }
+                    }
+
+                    p_simulator->rGetCellPopulation().RemoveDeadCells();
+                    p_simulator->rGetCellPopulation().Update();
+
+                    // Change the drag constant now
+                    p_simulator->rGetCellPopulation().SetDampingConstantNormal(drag_constant);
+
+                    // Add the new force
+                    p_simulator->RemoveAllForces();
+
+                    // Add spring force to account for loss of adhesion in wounding
+                    MAKE_PTR(DifferentialWoundAdhesionGeneralisedLinearSpringForce<2>, p_wound_spring_force);
+                    p_wound_spring_force->SetMeinekeSpringStiffness(spring_stiffness);
+                    p_wound_spring_force->SetAdhesionSpringConstantMultiplier(adhesion_constant_multiplier);
+                    p_wound_spring_force->SetCutOffLength(1.5);
+                    p_simulator->AddForce(p_wound_spring_force);
+
+                    // Add polarity-based migration force
+                    MAKE_PTR(PolarityBasedMigrationForce<2>, p_migration_force);
+                    p_migration_force->SetMigrationForceStrength(migration_force_strength);
+                    p_migration_force->SetPolarityRemodellingStrength(polarity_remodelling_strength);
+                    simulator.AddForce(p_migration_force);
+
+                    //Set output directory
+                    std::stringstream out_wound;
+                    out_wound << index << "/Wounding/ADHESION_" << adhesion_constant_multiplier << "_MIGRATION_" << migration_force_strength << "_DRAG_" << drag_constant;
+                    std::string wound_output_directory = M_OUTPUT_DIRECTORY + out_wound.str();
+
+                    p_simulator->SetOutputDirectory(wound_output_directory);
+
+                    p_simulator->SetEndTime(M_WOUND_END_TIME);
+                    p_simulator->SetSamplingTimestepMultiple(M_WOUND_SAMPLING_TIMESTEP);
+
+                    // Run the wounding part
+                    p_simulator->Solve();
+
+                    delete p_simulator;
+
+                    //Tidying up
+                    SimulationTime::Instance()->Destroy();
+                    SimulationTime::Instance()->SetStartTime(M_SS_END_TIME);
+                }
             }
         }
-
-        p_simulator->rGetCellPopulation().RemoveDeadCells();
-        p_simulator->rGetCellPopulation().Update();
-
-        // Change the drag constant now
-        p_simulator->rGetCellPopulation().SetDampingConstantNormal(drag_constant);
-
-        // Add the new force
-        p_simulator->RemoveAllForces();
-
-        // Add spring force to account for loss of adhesion in wounding
-        MAKE_PTR(DifferentialWoundAdhesionGeneralisedLinearSpringForce<2>, p_wound_spring_force);
-        p_wound_spring_force->SetMeinekeSpringStiffness(spring_stiffness);
-        p_wound_spring_force->SetAdhesionSpringConstantMultiplier(adhesion_constant_multiplier);
-        p_wound_spring_force->SetCutOffLength(1.5);
-        p_simulator->AddForce(p_wound_spring_force);
-
-        // Add polarity-based migration force
-        MAKE_PTR(PolarityBasedMigrationForce<2>, p_migration_force);
-        p_migration_force->SetMigrationForceStrength(migration_force_strength);
-        p_migration_force->SetPolarityRemodellingStrength(polarity_remodelling_strength);
-        simulator.AddForce(p_migration_force);
-
-        //Set output directory
-        std::stringstream out_wound;
-        out_wound << index << "/Wounding/ADHESION_" << adhesion_constant_multiplier << "_MIGRATION_" << migration_force_strength << "_DRAG_" << drag_constant;
-        std::string wound_output_directory = M_OUTPUT_DIRECTORY + out_wound.str();
-
-        p_simulator->SetOutputDirectory(wound_output_directory);
-
-        p_simulator->SetEndTime(M_WOUND_END_TIME);
-        p_simulator->SetSamplingTimestepMultiple(M_WOUND_SAMPLING_TIMESTEP);
-
-        // Run the wounding part
-        p_simulator->Solve();
-
-        //Tidying up
-        SimulationTime::Instance()->Destroy();
-        SimulationTime::Instance()->SetStartTime(M_SS_END_TIME);
     }
 
 };
