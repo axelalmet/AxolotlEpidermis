@@ -17,7 +17,7 @@ echo "Beginning runs from ${start_run} to ${end_run}."
 for ((i=start_run; i<=end_run; i++))
 do
 # "&" on the end lets the script carry on and not wait until this has finished.
-projects/$3/test/$2 -seed ${i} &
+projects/$5/test/$2 -seed ${i} &
 done
 
 echo "Jobs submitted"

@@ -132,19 +132,19 @@ public:
         MAKE_PTR_ARGS(PlaneBoundaryCondition<2>, p_bc_left, (&cell_population, point, normal));
         simulator.AddCellPopulationBoundaryCondition(p_bc_left);
 
-        point(0) = 0.0;
-        point(1) = 0.0;
-        normal(0) = -1.0;
-        normal(1) = 0.0;
-        MAKE_PTR_ARGS(PlaneBoundaryCondition<2>, p_bc_left, (&cell_population, point, normal));
-        simulator.AddCellPopulationBoundaryCondition(p_bc_left);
-
 		point(0) = (double)cells_across;
 		point(1) = 0.0;
 		normal(0) = 1.0;
 		normal(1) = 0.0;
 		MAKE_PTR_ARGS(PlaneBoundaryCondition<2>, p_bc_right, (&cell_population, point, normal));
 		simulator.AddCellPopulationBoundaryCondition(p_bc_right);
+
+        point(0) = 0.0;
+        point(1) = 0.0;
+        normal(0) = 0.0;
+        normal(1) = -1.0;
+        MAKE_PTR_ARGS(PlaneBoundaryCondition<2>, p_bc_bottom, (&cell_population, point, normal));
+        simulator.AddCellPopulationBoundaryCondition(p_bc_bottom);
 
 		point(0) = 0.0;
 		point(1) = 0.5*sqrt(3.0)*(double)cells_up;

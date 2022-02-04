@@ -139,19 +139,19 @@ public:
         MAKE_PTR_ARGS(PlaneBoundaryCondition<2>, p_bc_left, (&cell_population, point, normal));
         simulator.AddCellPopulationBoundaryCondition(p_bc_left);
 
-        point(0) = 0.0;
-        point(1) = 0.0;
-        normal(0) = -1.0;
-        normal(1) = 0.0;
-        MAKE_PTR_ARGS(PlaneBoundaryCondition<2>, p_bc_left, (&cell_population, point, normal));
-        simulator.AddCellPopulationBoundaryCondition(p_bc_left);
-
 		point(0) = (double)cells_across;
 		point(1) = 0.0;
 		normal(0) = 1.0;
 		normal(1) = 0.0;
 		MAKE_PTR_ARGS(PlaneBoundaryCondition<2>, p_bc_right, (&cell_population, point, normal));
 		simulator.AddCellPopulationBoundaryCondition(p_bc_right);
+
+        point(0) = 0.0;
+        point(1) = 0.0;
+        normal(0) = 0.0;
+        normal(1) = -1.0;
+        MAKE_PTR_ARGS(PlaneBoundaryCondition<2>, p_bc_bottom, (&cell_population, point, normal));
+        simulator.AddCellPopulationBoundaryCondition(p_bc_bottom);
 
 		point(0) = 0.0;
 		point(1) = 0.5*sqrt(3.0)*(double)cells_up;
@@ -218,8 +218,11 @@ public:
                     p_simulator->rGetCellPopulation().RemoveDeadCells();
                     p_simulator->rGetCellPopulation().Update();
 
+                    // Static cast the population to a MeshBasedCellPopulation to change the damping constant
+                    MeshBasedCellPopulation<2>* p_cell_population = static_cast<MeshBasedCellPopulation<DIM>*>(&p_simulator->rGetCellPopulation());
+
                     // Change the drag constant now
-                    p_simulator->rGetCellPopulation().SetDampingConstantNormal(drag_constant);
+                    p_cell_population->SetDampingConstantNormal(drag_constant);
 
                     // Add the new force
                     p_simulator->RemoveAllForces();
