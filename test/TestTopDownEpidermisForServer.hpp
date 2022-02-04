@@ -219,7 +219,7 @@ public:
                     p_simulator->rGetCellPopulation().Update();
 
                     // Static cast the population to a MeshBasedCellPopulation to change the damping constant
-                    MeshBasedCellPopulation<2>* p_cell_population = static_cast<MeshBasedCellPopulation<DIM>*>(&p_simulator->rGetCellPopulation());
+                    MeshBasedCellPopulation<2>* p_cell_population = static_cast<MeshBasedCellPopulation<2>*>(&p_simulator->rGetCellPopulation());
 
                     // Change the drag constant now
                     p_cell_population->SetDampingConstantNormal(drag_constant);
