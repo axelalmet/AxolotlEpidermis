@@ -169,8 +169,7 @@ public:
          */
 
         double polarity_remodelling_strength = 5.0; // Allow for sufficiently rapid remodelling to mechanical influences
-        double polarity_remodelling_strength = 5.0; // Allow for sufficiently rapid remodelling to mechanical influences
-        std::vector<double> drag_constants = {0.25, 0.5, 0.75, 1.0}
+        std::vector<double> drag_constants = {0.25, 0.5, 0.75, 1.0};
         std::vector<double> migration_force_strengths = {0.0, 1.0, 5.0, 10.0, 50.0};
         std::vector<double> spring_force_multipliers = {0.125, 0.25, 0.5, 1.0};
 
