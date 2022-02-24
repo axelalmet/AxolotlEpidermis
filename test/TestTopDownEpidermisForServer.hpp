@@ -32,9 +32,10 @@
 #include "Debug.hpp"
 
 static const std::string M_OUTPUT_DIRECTORY = "AxolotlEpidermis/TopDown/";
-static const double M_DT = 0.005;
+static const double M_SS_DT = 0.005;
 static const double M_SS_END_TIME = 50.0;
 static const double M_SS_SAMPLING_TIMESTEP = M_SS_END_TIME / M_DT;
+static const double M_WOUND_DT = 0.001;
 static const double M_WOUND_END_TIME = M_SS_END_TIME + 6.0;
 static const double M_WOUND_SAMPLING_TIMESTEP = 0.5 / M_DT;
 
@@ -55,10 +56,10 @@ public:
 
         // Define geometry of the model in terms of cells
         unsigned cells_across = 70;
-        unsigned cells_up = (unsigned) 360.0 / sqrt(3.0); // This is so that the tissue is actually 800um long
+        unsigned cells_up = (unsigned) 360.0 / sqrt(3.0); // This is so that the tissue is actually 180um long
 
         // Cell cycle parameters for contact inhibition
-        double quiescent_fraction = 0.8;
+        double quiescent_fraction = 0.9;
         double equilibrium_area = 3.0*sqrt(3.0)/8.0; // Calculated as area of hexagon with side length 0.5
 
         // Force parameters
@@ -104,6 +105,7 @@ public:
 		cell_population.SetWriteVtkAsPoints(true);
 		cell_population.AddPopulationWriter<VoronoiDataWriter>();
         cell_population.AddPopulationWriter<NodeVelocityWriter>();
+        cell_population.SetBoundVoronoiTessellation(true);
 
         // Define off-lattice simulation
         OffLatticeSimulation<2> simulator(cell_population);
@@ -115,7 +117,7 @@ public:
 		simulator.SetOutputDirectory(ss_output_directory);
 
         // Set timestepping parameters
-		simulator.SetDt(M_DT);
+		simulator.SetDt(M_SS_DT);
 		simulator.SetSamplingTimestepMultiple(M_SS_SAMPLING_TIMESTEP); //Sample the simulation at every hour
 		simulator.SetEndTime(M_SS_END_TIME); //Hopefully this is long enough for a steady state
 
@@ -247,6 +249,7 @@ public:
 
                     p_simulator->SetOutputDirectory(wound_output_directory);
 
+                    p_simulator->SetDt(M_WOUND_DT);
                     p_simulator->SetEndTime(M_WOUND_END_TIME);
                     p_simulator->SetSamplingTimestepMultiple(M_WOUND_SAMPLING_TIMESTEP);
 

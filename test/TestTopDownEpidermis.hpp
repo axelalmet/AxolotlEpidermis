@@ -33,9 +33,9 @@
 
 static const std::string M_OUTPUT_DIRECTORY = "AxolotlEpidermis/TopDown/";
 static const double M_DT = 0.005;
-static const double M_SS_END_TIME = 50.0;
+static const double M_SS_END_TIME = 1.0;
 static const double M_SS_SAMPLING_TIMESTEP = M_SS_END_TIME / M_DT;
-static const double M_WOUND_END_TIME = M_SS_END_TIME + 12.0;
+static const double M_WOUND_END_TIME = M_SS_END_TIME + 1.0;
 static const double M_WOUND_SAMPLING_TIMESTEP = 1.0 / M_DT;
 
 class TestTopDownEpidermis : public AbstractCellBasedTestSuite
@@ -49,8 +49,8 @@ public:
          */
 
         // Define geometry of the model in terms of cells
-        unsigned cells_across = 40;
-        unsigned cells_up = (unsigned) 160.0 / sqrt(3.0); // This is so that the tissue is actually 800um long
+        unsigned cells_across = 5;
+        unsigned cells_up = (unsigned) 5.0 / sqrt(3.0); // This is so that the tissue is actually 800um long
 
         // Cell cycle parameters for contact inhibition
         double quiescent_fraction = 0.8;
@@ -99,6 +99,7 @@ public:
 		cell_population.SetWriteVtkAsPoints(true);
 		cell_population.AddPopulationWriter<VoronoiDataWriter>();
         cell_population.AddPopulationWriter<NodeVelocityWriter>();
+        cell_population.SetBoundVoronoiTessellation(true);
 
         // Define off-lattice simulation
         OffLatticeSimulation<2> simulator(cell_population);
@@ -162,9 +163,9 @@ public:
          */
 
         double polarity_remodelling_strength = 5.0; // Allow for sufficiently rapid remodelling to mechanical influences
-        std::vector<double> drag_constants = {0.25, 0.5, 0.75, 1.0}
-        std::vector<double> migration_force_strengths = {0.0, 1.0, 5.0, 10.0, 50.0};
-        std::vector<double> spring_force_multipliers = {0.125, 0.25, 0.5, 1.0};
+        std::vector<double> drag_constants = {1.0};
+        std::vector<double> migration_force_strengths = {0.0};
+        std::vector<double> spring_force_multipliers = {1.0};
 
         for (unsigned i = 0; i < spring_force_multipliers.size(); i++)
         {
@@ -211,8 +212,11 @@ public:
                     p_simulator->rGetCellPopulation().RemoveDeadCells();
                     p_simulator->rGetCellPopulation().Update();
 
+                    // Static cast the population to a MeshBasedCellPopulation to change the damping constant
+                    MeshBasedCellPopulation<2>* p_cell_population = static_cast<MeshBasedCellPopulation<2>*>(&p_simulator->rGetCellPopulation());
+
                     // Change the drag constant now
-                    p_simulator->rGetCellPopulation().SetDampingConstantNormal(drag_constant);
+                    p_cell_population->SetDampingConstantNormal(drag_constant);
 
                     // Add the new force
                     p_simulator->RemoveAllForces();
